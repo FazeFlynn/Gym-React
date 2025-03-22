@@ -617,7 +617,7 @@ function PullUps() {
         <h2>Well Done</h2>
         {/* <button onClick={playAgain} className="zind">Play Again</button> */}
         <p className="zind">
-          <span>Workout Plan Completed: </span> You have performed {setsCount+1} sets of {planRepsRef.current} reps of pull-ups in this Session.
+          <span>Workout Plan Completed: </span> You have performed {setsCount+1} sets of {planRepsRef.current} reps of Pull-Ups in this Session.
         </p>
       </div>
     </div>

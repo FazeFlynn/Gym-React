@@ -542,7 +542,7 @@ let camStopped = false;
         <h2>Well Done</h2>
         {/* <button onClick={playAgain} className="zind">Play Again</button> */}
         <p className="zind">
-        <span>Workout Plan Completed: </span> You have performed {setsCount+1} sets of {planRepsRef.current} reps of pull-ups in this Session.
+        <span>Workout Plan Completed: </span> You have performed {setsCount+1} sets of {planRepsRef.current} reps of Lunges in this Session.
         {/* <span>Summary: </span> You have performed {setsCount} sets of {planRepsRef.current} reps + {lungesCount} reps of pull-ups in this video. Keep going! */}
           {/* <span>Summary: </span> You have performed {lungesCount} reps of pull-ups in this video. Keep going! */}
         </p>
