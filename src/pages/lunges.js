@@ -140,6 +140,56 @@ let smoothedKeypoints = {};
     }
   };
 
+
+  
+    const requestRef = useRef(null);
+  
+  
+    const stopCamera2 = () => {
+      console.log("Stopping camera and pose processing...");
+    
+      setIsLiveTracking(false); // Stop tracking
+      
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current); //  Stop ongoing animation loop
+        requestRef.current = null;
+        console.log(" Animation frame cancelled");
+      }
+    
+      if (poseRef.current) {
+        try {
+          console.log("Closing MediaPipe Pose...");
+          poseRef.current.close();
+          poseRef.current = null;
+          console.log("Pose instance closed");
+        } catch (error) {
+          console.error(" Error closing pose instance:", error);
+        }
+      }
+    
+      if (videoRef.current && videoRef.current.srcObject) {
+        let tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+        console.log(" Camera stopped safely");
+      }
+  
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        console.log("Canvas cleared");
+      }
+    
+      // Reset video element to remove last frame
+      if (videoRef.current) {
+        videoRef.current.src = ""; // Unload the last frame
+        videoRef.current.load(); // Reset the video element
+        console.log("Video element cleared");
+      }
+  
+    };
+    
+
   const toggleTrackingPoints = () => {
     setShowTrackingPoints(!showTrackingPoints);
   };
@@ -219,6 +269,7 @@ function checkRepsAndSets(){
 }
 
 
+let camStopped = false;
 
 
   
@@ -280,7 +331,21 @@ function checkRepsAndSets(){
 
     videoRef.current.playbackRate = 0.9;
 
-    if(lungeCount >= planRepsRef.current){
+
+    if(setCount >= planSetsRef.current-1 && lungesCountRef.current >= planRepsRef.current){
+      // console.alert(`Video should have ended now`);
+      setIsLiveTracking(false);
+      console.warn(`Video should have ended now`);
+      setVideoEnded(true);
+      setIsVideoPlaying(false);
+      stopCamera2();
+      camStopped = true;
+    } else {
+      console.log(`Condition not true ${setCount} >= ${planSetsRef.current} and ${lungesCountRef.current} >= ${planRepsRef.current}`);
+    }
+
+
+    if(lungeCount >= planRepsRef.current && !camStopped){
       checkRepsAndSets();
       console.log(`Condition true ${lungeCount} >= ${planRepsRef.current}`);
       lungesCountRef.current = 0;
@@ -302,17 +367,47 @@ function checkRepsAndSets(){
     processPose(results.poseLandmarks);
   };
 
-  const processVideo = async () => {
-    if (videoRef.current.paused || videoRef.current.ended) return;
-    await poseRef.current.send({ image: videoRef.current });
-    requestAnimationFrame(processVideo);
-  };
+  // const processVideo = async () => {
+  //   if (videoRef.current.paused || videoRef.current.ended) return;
+  //   await poseRef.current.send({ image: videoRef.current });
+  //   requestAnimationFrame(processVideo);
+  // };
 
-  const processLiveVideo = async () => {
-    if (!isLiveTracking) return;
-    await poseRef.current.send({ image: videoRef.current });
-    requestAnimationFrame(processLiveVideo);
+  // const processLiveVideo = async () => {
+  //   if (!isLiveTracking) return;
+  //   await poseRef.current.send({ image: videoRef.current });
+  //   requestAnimationFrame(processLiveVideo);
+  // };
+
+
+  const processVideo = async () => {
+    if (!isLiveTracking && !poseRef.current && !videoRef.current) return; // ✅ Prevent crashes
+  
+    try {
+      if(poseRef.current){
+
+        await poseRef.current.send({ image: videoRef.current });
+        requestRef.current = requestAnimationFrame(processVideo); // ✅ Store request ID
+      }
+    } catch (error) {
+      console.error("🔥 Error in processVideo:", error);
+    }
   };
+  
+  const processLiveVideo = async () => {
+    if (!isLiveTracking && !poseRef.current && !videoRef.current) return; // ✅ Prevent crashes
+  
+    try {
+      if(poseRef.current){
+
+        await poseRef.current.send({ image: videoRef.current });
+      requestRef.current = requestAnimationFrame(processLiveVideo); // ✅ Store request ID
+      }
+    } catch (error) {
+      console.error("🔥 Error in processLiveVideo:", error);
+    }
+  };
+  
 
   // Load pose detection model
   useEffect(() => {
@@ -444,9 +539,12 @@ function checkRepsAndSets(){
         className="summary center zind" 
         style={{ display: videoEnded ? 'flex' : 'none' }}
       >
-        <button onClick={playAgain} className="zind">Play Again</button>
+        <h2>Well Done</h2>
+        {/* <button onClick={playAgain} className="zind">Play Again</button> */}
         <p className="zind">
-          <span>Summary: </span> You have performed {lungesCount} reps of pull-ups in this video. Keep going!
+        <span>Workout Plan Completed: </span> You have performed {setsCount+1} sets of {planRepsRef.current} reps of pull-ups in this Session.
+        {/* <span>Summary: </span> You have performed {setsCount} sets of {planRepsRef.current} reps + {lungesCount} reps of pull-ups in this video. Keep going! */}
+          {/* <span>Summary: </span> You have performed {lungesCount} reps of pull-ups in this video. Keep going! */}
         </p>
       </div>
     </div>

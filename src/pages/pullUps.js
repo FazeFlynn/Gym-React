@@ -28,6 +28,7 @@ function PullUps() {
 
 
   // Refs
+  
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -134,12 +135,75 @@ function PullUps() {
   };
 
   const stopCamera = () => {
+
+    console.log(`Stop camera called dont know from where`);
+
+    setIsLiveTracking(false);
+
     if (videoRef.current && videoRef.current.srcObject) {
       let tracks = videoRef.current.srcObject.getTracks();
       tracks.forEach(track => track.stop());
       videoRef.current.srcObject = null;
     }
   };
+
+
+
+  const requestRef = useRef(null);
+
+
+  const stopCamera2 = () => {
+    console.log("Stopping camera and pose processing...");
+  
+    setIsLiveTracking(false); // Stop tracking
+    
+    if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current); //  Stop ongoing animation loop
+      requestRef.current = null;
+      console.log(" Animation frame cancelled");
+    }
+  
+    if (poseRef.current) {
+      try {
+        console.log("Closing MediaPipe Pose...");
+        poseRef.current.close();
+        poseRef.current = null;
+        console.log("Pose instance closed");
+      } catch (error) {
+        console.error(" Error closing pose instance:", error);
+      }
+    }
+  
+    if (videoRef.current && videoRef.current.srcObject) {
+      let tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+      console.log(" Camera stopped safely");
+    }
+
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      console.log("Canvas cleared");
+    }
+  
+    // Reset video element to remove last frame
+    if (videoRef.current) {
+      videoRef.current.src = ""; // Unload the last frame
+      videoRef.current.load(); // Reset the video element
+      console.log("Video element cleared");
+    }
+
+  };
+  
+  
+
+
+
+
+
+
+
 
   const toggleTrackingPoints = () => {
     setShowTrackingPoints(!showTrackingPoints);
@@ -148,6 +212,7 @@ function PullUps() {
   const playAgain = () => {
     videoRef.current.play();
     setPullUpCount(0);
+    pullUpCountRef.current = 0;
     setVideoEnded(false);
     setIsVideoPlaying(true);
   };
@@ -199,6 +264,21 @@ function PullUps() {
 
   }
 
+
+  // async function RestTimeOut() {
+  //   console.log(` Waiting for ${planRestTimeRef.current} seconds...`);
+  
+  //   setTimeout(() => {
+  //     // Ensure video has a valid source before playing
+  //     if (videoRef.current && videoRef.current.src) {
+  //       console.log("Resuming video...");
+  //       videoRef.current.play();
+  //     } else {
+  //       console.warn("Video source is empty. Skipping play.");
+  //     }
+  //   }, planRestTimeRef.current * 1000);
+  // }
+
   
   function checkRepsAndSets(){
 
@@ -219,6 +299,7 @@ function PullUps() {
 
   }
 
+  let camStopped = false;
   
 
   const processPose = (keypoints) => {
@@ -300,18 +381,27 @@ function PullUps() {
 
     
     videoRef.current.playbackRate = 0.9;
-
-
-
     console.log(`PullUps Count and Plan Reps: ${pullUpCountRef.current} and ${planRepsRef.current}`);
 
-    if(pullUpCountRef.current >= planRepsRef.current){
-      checkRepsAndSets();
-      console.log(`Condition true ${pullUpCountRef.current} >= ${planRepsRef.current}`)
+
+
+    if(setCount >= planSetsRef.current-1 && pullUpCountRef.current >= planRepsRef.current){
+      // console.alert(`Video should have ended now`);
+      setIsLiveTracking(false);
+      console.warn(`Video should have ended now`);
+      setVideoEnded(true);
+      setIsVideoPlaying(false);
+      stopCamera2();
+      camStopped = true;
+    } else {
+      console.log(`Condition not true ${setCount} >= ${planSetsRef.current} and ${pullUpCountRef.current} >= ${planRepsRef.current}`);
     }
 
 
-
+    if(pullUpCountRef.current >= planRepsRef.current && !camStopped){
+      checkRepsAndSets();
+      console.log(`Condition true ${pullUpCountRef.current} >= ${planRepsRef.current}`)
+    }
 
 
   };
@@ -328,17 +418,70 @@ function PullUps() {
     processPose(results.poseLandmarks);
   };
 
-  const processVideo = async () => {
-    if (videoRef.current.paused || videoRef.current.ended) return;
-    await poseRef.current.send({ image: videoRef.current });
-    requestAnimationFrame(processVideo);
-  };
+  // const processVideo = async () => {
+  //   if (videoRef.current.paused || videoRef.current.ended) return;
+  //   await poseRef.current.send({ image: videoRef.current });
+  //   requestAnimationFrame(processVideo);
+  // };
 
-  const processLiveVideo = async () => {
-    if (!isLiveTracking) return;
-    await poseRef.current.send({ image: videoRef.current });
-    requestAnimationFrame(processLiveVideo);
+  // const processLiveVideo = async () => {
+  //   if (!isLiveTracking) return;
+  //   await poseRef.current.send({ image: videoRef.current });
+  //   requestAnimationFrame(processLiveVideo);
+  // };
+
+  // const processLiveVideo = async () => {
+  //   if (!isLiveTracking || !videoRef.current) return; // ✅ Stop if tracking is disabled
+  
+  //   try {
+  //     await poseRef.current.send({ image: videoRef.current });
+  //     requestAnimationFrame(processLiveVideo);
+  //   } catch (error) {
+  //     console.error("🔥 Error in processLiveVideo:", error);
+  //   }
+  // };
+
+
+  // const processLiveVideo = async () => {
+  //   if (!isLiveTracking || !poseRef.current || !videoRef.current) return; // ✅ Prevent crashes
+  
+  //   try {
+  //     await poseRef.current.send({ image: videoRef.current });
+  //     requestRef.current = requestAnimationFrame(processLiveVideo); // ✅ Store request ID
+  //   } catch (error) {
+  //     console.error("🔥 Error in processLiveVideo:", error);
+  //   }
+  // };
+
+
+  const processVideo = async () => {
+    if (!isLiveTracking && !poseRef.current && !videoRef.current) return; // ✅ Prevent crashes
+  
+    try {
+      if(poseRef.current){
+
+        await poseRef.current.send({ image: videoRef.current });
+        requestRef.current = requestAnimationFrame(processVideo); // ✅ Store request ID
+      }
+    } catch (error) {
+      console.error("🔥 Error in processVideo:", error);
+    }
   };
+  
+  const processLiveVideo = async () => {
+    if (!isLiveTracking && !poseRef.current && !videoRef.current) return; // ✅ Prevent crashes
+  
+    try {
+      if(poseRef.current){
+
+        await poseRef.current.send({ image: videoRef.current });
+      requestRef.current = requestAnimationFrame(processLiveVideo); // ✅ Store request ID
+      }
+    } catch (error) {
+      console.error("🔥 Error in processLiveVideo:", error);
+    }
+  };
+  
 
   // Load pose detection model
   useEffect(() => {
@@ -471,9 +614,10 @@ function PullUps() {
         className="summary center zind" 
         style={{ display: videoEnded ? 'flex' : 'none' }}
       >
-        <button onClick={playAgain} className="zind">Play Again</button>
+        <h2>Well Done</h2>
+        {/* <button onClick={playAgain} className="zind">Play Again</button> */}
         <p className="zind">
-          <span>Summary: </span> You have performed {pullUpCount} reps of pull-ups in this video. Keep going!
+          <span>Workout Plan Completed: </span> You have performed {setsCount+1} sets of {planRepsRef.current} reps of pull-ups in this Session.
         </p>
       </div>
     </div>
